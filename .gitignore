@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+
+# Local debug crops / scratch exports
+public/_*.png
+*.p0.png
+фон.pdf
+Мирон*.pdf
+1920-1080*.png
