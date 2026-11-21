@@ -3,7 +3,6 @@ import './style.css'
 import {
   CARD_H,
   CARD_W,
-  defaultData,
   downloadCanvas,
   loadInvitationAssets,
   renderInvitation,
@@ -15,13 +14,11 @@ import {
   formatRuDateTime,
   readPickerIso,
 } from './dateTime'
-import { bindRuPhoneMask, formatRuPhone } from './phoneMask'
+import { bindRuPhoneMask } from './phoneMask'
 import { DEFAULT_VENUE_ID, VENUES, type VenueId } from './venues'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('#app not found')
-
-const initial = defaultData()
 
 app.innerHTML = `
   <div class="page">
@@ -40,8 +37,7 @@ app.innerHTML = `
           <div class="field">
             <label for="guestName">Имя гостя</label>
             <input id="guestName" name="guestName" type="text" maxlength="40"
-              placeholder="Например: Дорогой Друг, Маша, Саша"
-              value="${escapeAttr(initial.guestName)}" autocomplete="off" />
+              placeholder="Например: Маша" value="" autocomplete="off" />
           </div>
 
           <div class="field">
@@ -64,16 +60,14 @@ app.innerHTML = `
           <div class="field">
             <label for="contactPhone">Телефон для связи</label>
             <input id="contactPhone" name="contactPhone" type="tel"
-              value="${escapeAttr(formatRuPhone(initial.contactPhone))}"
-              autocomplete="tel" inputmode="tel" maxlength="18"
+              value="" autocomplete="tel" inputmode="tel" maxlength="18"
               placeholder="+7 (___) ___-__-__" />
           </div>
 
           <div class="field">
             <label for="contactName">Имя для связи</label>
             <input id="contactName" name="contactName" type="text" maxlength="24"
-              placeholder="Например: Булат, Мама Юля"
-              value="${escapeAttr(initial.contactName)}" autocomplete="name" />
+              placeholder="Например: Юля" value="" autocomplete="name" />
           </div>
 
           <div class="actions">

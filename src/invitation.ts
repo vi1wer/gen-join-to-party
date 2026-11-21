@@ -8,23 +8,30 @@ export type InvitationData = {
   venueId: VenueId
 }
 
-/** Output size — tall card for messengers */
-export const CARD_W = 1080
-export const CARD_H = 1680
+/**
+ * A5 portrait @ 300 dpi
+ * 148 × 210 mm → 1748 × 2480 px
+ */
+export const CARD_W = 1748
+export const CARD_H = 2480
 
-/** Horizontal inset from canvas edges */
-const EDGE_X = 130
-/** Top / bottom breathing room */
-const EDGE_TOP = 56
-const EDGE_BOTTOM = 48
+const EDGE_X = 80
+const EDGE_TOP = 24
+const EDGE_BOTTOM = 24
+const FOOTER_H = 220
 
 const PALETTE = {
   text: '#ffffff',
   muted: 'rgba(255,255,255,0.94)',
-  soft: 'rgba(255,255,255,0.80)',
+  soft: 'rgba(255,255,255,0.82)',
   gold: '#f0b400',
   line: 'rgba(255,255,255,0.55)',
 }
+
+/** Montserrat Black — title «ПРИГЛАШЕНИЕ» only */
+const FONT_TITLE = '"Montserrat Black", sans-serif'
+/** Days Regular — all other invitation text */
+const FONT_BODY = 'Days, sans-serif'
 
 type Assets = {
   bg: HTMLImageElement
@@ -44,7 +51,7 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
 
 export async function loadInvitationAssets(): Promise<void> {
   if (assets) return
-  const bust = '?v=9'
+  const bust = '?v=19'
   const base = import.meta.env.BASE_URL
   const [bg, logo, icons, cta] = await Promise.all([
     loadImage(`${base}bg.png${bust}`),
@@ -58,10 +65,10 @@ export async function loadInvitationAssets(): Promise<void> {
 export async function waitForFonts(): Promise<void> {
   if (!document.fonts) return
   await Promise.all([
-    document.fonts.load('800 120px Unbounded'),
-    document.fonts.load('700 72px Manrope'),
-    document.fonts.load('600 44px Manrope'),
-    document.fonts.load('500 34px Manrope'),
+    document.fonts.load(`900 160px ${FONT_TITLE}`),
+    document.fonts.load(`400 90px ${FONT_BODY}`),
+    document.fonts.load(`400 56px ${FONT_BODY}`),
+    document.fonts.load(`400 40px ${FONT_BODY}`),
   ])
   await document.fonts.ready
 }
@@ -98,12 +105,29 @@ function drawContained(
   cy: number,
   maxW: number,
   maxH: number,
-): { w: number; h: number } {
+): void {
   const scale = Math.min(maxW / img.width, maxH / img.height)
   const dw = img.width * scale
   const dh = img.height * scale
   ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh)
-  return { w: dw, h: dh }
+}
+
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.arcTo(x + w, y, x + w, y + h, radius)
+  ctx.arcTo(x + w, y + h, x, y + h, radius)
+  ctx.arcTo(x, y + h, x, y, radius)
+  ctx.arcTo(x, y, x + w, y, radius)
+  ctx.closePath()
 }
 
 function drawFooter(ctx: CanvasRenderingContext2D, w: number, venue: Venue, lineY: number): void {
@@ -111,7 +135,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, w: number, venue: Venue, line
   const right = w - EDGE_X
 
   ctx.strokeStyle = PALETTE.line
-  ctx.lineWidth = 1.5
+  ctx.lineWidth = 2
   ctx.beginPath()
   ctx.moveTo(left, lineY)
   ctx.lineTo(right, lineY)
@@ -120,55 +144,78 @@ function drawFooter(ctx: CanvasRenderingContext2D, w: number, venue: Venue, line
   ctx.textAlign = 'left'
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = PALETTE.text
-  ctx.font = '700 30px Unbounded, sans-serif'
+  ctx.font = `400 40px ${FONT_BODY}`
   const brand = 'LASERLAND '
-  ctx.fillText(brand, left, lineY + 50)
+  ctx.fillText(brand, left, lineY + 62)
   const brandW = ctx.measureText(brand).width
-  ctx.font = '800 30px Unbounded, sans-serif'
-  ctx.fillText('КАЗАНЬ', left + brandW, lineY + 50)
+  ctx.font = `400 40px ${FONT_BODY}`
+  ctx.fillText('КАЗАНЬ', left + brandW, lineY + 62)
 
-  const addrMaxW = w * 0.52
+  const addrMaxW = w * 0.54
   ctx.fillStyle = PALETTE.soft
-  ctx.font = '500 20px Manrope, sans-serif'
-  let addrY = lineY + 88
+  let addrY = lineY + 110
   for (const line of venue.addressLines) {
-    const size = fitSize(ctx, line, addrMaxW, 20, 14, 'Manrope, sans-serif', 500)
-    ctx.font = `500 ${size}px Manrope, sans-serif`
+    const size = fitSize(ctx, line, addrMaxW, 28, 18, FONT_BODY, 500)
+    ctx.font = `500 ${size}px ${FONT_BODY}`
     ctx.fillText(line, left, addrY)
-    addrY += size + 8
+    addrY += size + 10
   }
 
   ctx.fillStyle = PALETTE.text
-  ctx.font = '600 22px Manrope, sans-serif'
-  ctx.fillText(venue.phone, left, Math.max(addrY + 10, lineY + 148))
+  ctx.font = `600 30px ${FONT_BODY}`
+  const phoneY = Math.max(addrY + 16, lineY + 186)
+  ctx.fillText(venue.phone, left, phoneY)
 
   ctx.textAlign = 'right'
-  const row = (icon: string, handle: string, yy: number) => {
-    ctx.font = '600 20px Manrope, sans-serif'
-    const tw = ctx.measureText(handle).width
-    const cx = right - tw - 34
+  const drawSocialBadge = (cx: number, cy: number, drawGlyph: () => void) => {
     ctx.fillStyle = 'rgba(255,255,255,0.95)'
     ctx.beginPath()
-    ctx.arc(cx, yy - 6, 13, 0, Math.PI * 2)
+    ctx.arc(cx, cy, 17, 0, Math.PI * 2)
     ctx.fill()
-    ctx.fillStyle = '#10243f'
-    ctx.font = '800 11px Manrope, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(icon, cx, yy - 6)
+    drawGlyph()
+  }
+
+  const row = (handle: string, yy: number, drawGlyph: (cx: number, cy: number) => void) => {
+    ctx.font = `600 26px ${FONT_BODY}`
+    const tw = ctx.measureText(handle).width
+    const cx = right - tw - 42
+    const cy = yy - 8
+    drawSocialBadge(cx, cy, () => drawGlyph(cx, cy))
     ctx.textAlign = 'right'
     ctx.textBaseline = 'alphabetic'
     ctx.fillStyle = PALETTE.soft
-    ctx.font = '600 20px Manrope, sans-serif'
+    ctx.font = `600 26px ${FONT_BODY}`
     ctx.fillText(handle, right, yy)
   }
 
-  row('VK', venue.vk, lineY + 50)
-  row('IG', venue.instagram, lineY + 94)
+  row(venue.vk, lineY + 62, (cx, cy) => {
+    ctx.fillStyle = '#10243f'
+    ctx.font = `800 13px ${FONT_BODY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('VK', cx, cy)
+  })
+
+  row(venue.instagram, lineY + 116, (cx, cy) => {
+    // Classic Instagram camera pictogram
+    ctx.strokeStyle = '#10243f'
+    ctx.fillStyle = '#10243f'
+    ctx.lineWidth = 1.8
+    ctx.lineJoin = 'round'
+    const s = 11
+    roundRectPath(ctx, cx - s, cy - s, s * 2, s * 2, 3.2)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(cx, cy, 4.2, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(cx + 5.2, cy - 5.2, 1.35, 0, Math.PI * 2)
+    ctx.fill()
+  })
 
   ctx.fillStyle = PALETTE.text
-  ctx.font = '700 20px Manrope, sans-serif'
-  ctx.fillText(venue.site, right, lineY + 148)
+  ctx.font = `700 26px ${FONT_BODY}`
+  ctx.fillText(venue.site, right, phoneY)
 }
 
 export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData): void {
@@ -181,98 +228,118 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
 
   const guest = data.guestName.trim() || 'Дорогой Друг'
   const when = data.dateTime.trim() || '25 октября в 17:00'
   const phone = data.contactPhone.trim() || '+7 (950) 166-05-10'
   const host = data.contactName.trim() || 'Юля'
   const venue = getVenue(data.venueId)
-
-  drawCoverBackground(ctx, assets.bg, w, h)
-
   const contentW = w - EDGE_X * 2
 
-  // Bottom band: footer flush to bottom, contact above it
-  const footerBottom = h - EDGE_BOTTOM
-  const footerLineY = footerBottom - 168
-  const contactY = footerLineY - 44
-
-  drawFooter(ctx, w, venue, footerLineY)
-
+  drawCoverBackground(ctx, assets.bg, w, h)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+
+  /*
+   * Fill A5 with large blocks (fractions of page height).
+   * No tiny type + huge empty air.
+   */
+  const footerLineY = h - EDGE_BOTTOM - FOOTER_H
   const contact = `По всем вопросам звоните: ${phone} — ${host}`
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'
-  const contactSize = fitSize(ctx, contact, contentW, 28, 16, 'Manrope, sans-serif', 500)
-  ctx.font = `500 ${contactSize}px Manrope, sans-serif`
-  ctx.fillText(contact, w / 2, contactY)
+  const contactSize = fitSize(ctx, contact, contentW, 42, 24, FONT_BODY, 500)
+  const contactY = footerLineY - 18 - contactSize / 2
 
-  // Top content
-  drawContained(ctx, assets.logo, w / 2, EDGE_TOP + 110, Math.min(640, contentW), 230)
+  // Aggressive fill of A5 — large blocks, tight gaps
+  const top = EDGE_TOP
+  const bottom = contactY - contactSize / 2 - 16
+  const span = bottom - top
+  const g = span * 0.008 // ~tight gap
 
-  ctx.fillStyle = PALETTE.gold
-  const title = 'ПРИГЛАШЕНИЕ'
-  const titleSize = fitSize(ctx, title, contentW, 100, 64, 'Unbounded, sans-serif', 800)
-  ctx.font = `800 ${titleSize}px Unbounded, sans-serif`
-  ctx.fillText(title, w / 2, 340)
+  const logoH = span * 0.17
+  const logoY = top + logoH / 2
 
-  ctx.fillStyle = PALETTE.text
-  const guestSize = fitSize(ctx, guest, contentW, 68, 36, 'Manrope, sans-serif', 700)
-  ctx.font = `700 ${guestSize}px Manrope, sans-serif`
-  ctx.fillText(guest, w / 2, 445)
+  const titleSize = fitSize(ctx, 'ПРИГЛАШЕНИЕ', contentW, Math.round(span * 0.072), 90, FONT_TITLE, 900)
+  const titleY = logoY + logoH / 2 + g * 1.4 + titleSize / 2
+
+  const guestSize = fitSize(ctx, guest, contentW, Math.round(span * 0.042), 48, FONT_BODY, 700)
+  const guestY = titleY + titleSize / 2 + g * 1.2 + guestSize / 2
 
   const invite = 'Приглашаю тебя на свой День рождения, который состоится'
-  ctx.fillStyle = PALETTE.muted
-  const inviteSize = fitSize(ctx, invite, contentW, 36, 22, 'Manrope, sans-serif', 600)
-  ctx.font = `600 ${inviteSize}px Manrope, sans-serif`
-  const inviteW = ctx.measureText(invite).width
-  const dateSize = fitSize(ctx, when, contentW, 52, 30, 'Manrope, sans-serif', 700)
-  ctx.font = `700 ${dateSize}px Manrope, sans-serif`
+  const inviteSize = fitSize(ctx, invite, contentW, Math.round(span * 0.024), 30, FONT_BODY, 600)
+  const dateSize = fitSize(ctx, when, contentW, Math.round(span * 0.034), 40, FONT_BODY, 700)
+  ctx.font = `700 ${dateSize}px ${FONT_BODY}`
   const dateW = ctx.measureText(when).width
+  const dateOnOwnLine = dateW <= contentW
+  const inviteY = guestY + guestSize / 2 + g * 1.2 + inviteSize / 2
+  const dateY = dateOnOwnLine ? inviteY + inviteSize / 2 + g + dateSize / 2 : inviteY
+  const afterDate = (dateOnOwnLine ? dateY : inviteY) + dateSize / 2
 
-  let afterDateY = 590
-  if (dateW <= contentW) {
-    ctx.font = `600 ${inviteSize}px Manrope, sans-serif`
-    ctx.fillText(invite, w / 2, 520)
+  const adventure = 'В LaserLand нас ждет космическое приключение,'
+  const adventureSize = fitSize(ctx, adventure, contentW, Math.round(span * 0.024), 30, FONT_BODY, 500)
+  const adventureY = afterDate + g * 1.4 + adventureSize / 2
+
+  const moreSize = Math.max(42, Math.round(span * 0.028))
+  const iconsH = span * 0.235
+  const iconsY = adventureY + adventureSize / 2 + g * 1.5 + iconsH / 2
+  const moreY = iconsY + iconsH / 2 + g * 1.2 + moreSize / 2
+
+  // CTA fills remaining — stays large
+  const ctaTop = moreY + moreSize / 2 + g * 1.5
+  const ctaBottom = contactY - contactSize / 2 - 16
+  const ctaH = Math.max(span * 0.16, ctaBottom - ctaTop)
+  const ctaY = (ctaTop + ctaBottom) / 2
+
+  drawContained(ctx, assets.logo, w / 2, logoY, Math.min(1100, contentW), logoH)
+
+  ctx.fillStyle = PALETTE.gold
+  ctx.font = `900 ${titleSize}px ${FONT_TITLE}`
+  ctx.fillText('ПРИГЛАШЕНИЕ', w / 2, titleY)
+
+  ctx.fillStyle = PALETTE.text
+  ctx.font = `700 ${guestSize}px ${FONT_BODY}`
+  ctx.fillText(guest, w / 2, guestY)
+
+  ctx.fillStyle = PALETTE.muted
+  if (dateOnOwnLine) {
+    ctx.font = `600 ${inviteSize}px ${FONT_BODY}`
+    ctx.fillText(invite, w / 2, inviteY)
     ctx.fillStyle = PALETTE.text
-    ctx.font = `700 ${dateSize}px Manrope, sans-serif`
-    ctx.fillText(when, w / 2, 590)
-    afterDateY = 590
+    ctx.font = `700 ${dateSize}px ${FONT_BODY}`
+    ctx.fillText(when, w / 2, dateY)
   } else {
-    ctx.font = `600 ${inviteSize}px Manrope, sans-serif`
+    ctx.font = `600 ${inviteSize}px ${FONT_BODY}`
+    const inviteW = ctx.measureText(invite).width
     ctx.textAlign = 'left'
-    const blockW = inviteW + 14 + dateW
+    const blockW = inviteW + 18 + dateW
     const startX = Math.max(EDGE_X, (w - blockW) / 2)
-    ctx.fillText(invite, startX, 555)
+    ctx.fillText(invite, startX, inviteY)
     ctx.fillStyle = PALETTE.text
-    ctx.font = `700 ${dateSize}px Manrope, sans-serif`
-    ctx.fillText(when, startX + inviteW + 14, 555)
+    ctx.font = `700 ${dateSize}px ${FONT_BODY}`
+    ctx.fillText(when, startX + inviteW + 18, inviteY)
     ctx.textAlign = 'center'
-    afterDateY = 555
   }
 
-  const iconsY = afterDateY + 220
-  drawContained(ctx, assets.icons, w / 2, iconsY, contentW, 240)
-
-  // Adventure line — lighter weight, tucked just above the icons
-  const adventure = 'В LaserLand нас ждет космическое приключение,'
-  const adventureY = iconsY - 118
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'
-  const adventureSize = fitSize(ctx, adventure, contentW, 30, 20, 'Manrope, sans-serif', 500)
-  ctx.font = `500 ${adventureSize}px Manrope, sans-serif`
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'
+  ctx.font = `500 ${adventureSize}px ${FONT_BODY}`
   ctx.fillText(adventure, w / 2, adventureY)
 
-  ctx.fillStyle = PALETTE.muted
-  ctx.font = '600 34px Manrope, sans-serif'
-  const moreY = iconsY + 150
-  ctx.fillText('и многое другое!', w / 2, moreY)
+  drawContained(ctx, assets.icons, w / 2, iconsY, contentW, iconsH)
 
-  // CTA sits tightly under "и многое другое", above contact
-  const ctaTop = moreY + 40
-  const ctaBottom = contactY - 30
-  const ctaY = (ctaTop + ctaBottom) / 2
-  const ctaMaxH = Math.max(220, ctaBottom - ctaTop)
-  drawContained(ctx, assets.cta, w / 2, ctaY, Math.min(920, contentW), Math.min(300, ctaMaxH))
+  ctx.fillStyle = PALETTE.muted
+  ctx.font = `600 ${moreSize}px ${FONT_BODY}`
+  ctx.textAlign = 'left'
+  ctx.fillText('и многое другое!', EDGE_X, moreY)
+  ctx.textAlign = 'center'
+
+  drawContained(ctx, assets.cta, w / 2, ctaY, Math.min(1550, contentW), ctaH)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'
+  ctx.font = `500 ${contactSize}px ${FONT_BODY}`
+  ctx.fillText(contact, w / 2, contactY)
+
+  drawFooter(ctx, w, venue, footerLineY)
 }
 
 export function downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {
@@ -284,10 +351,10 @@ export function downloadCanvas(canvas: HTMLCanvasElement, filename: string): voi
 
 export function defaultData(): InvitationData {
   return {
-    guestName: 'Дорогой Друг',
+    guestName: '',
     dateTime: '25 октября в 17:00',
-    contactPhone: '+7 (950) 166-05-10',
-    contactName: 'Юля',
+    contactPhone: '',
+    contactName: '',
     venueId: 'yamasheva',
   }
 }

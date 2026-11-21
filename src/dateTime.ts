@@ -185,12 +185,14 @@ export function bindPartyDateTimePicker(
   const fp = flatpickr(input, {
     locale: Russian,
     enableTime: false,
+    closeOnSelect: false,
     dateFormat: 'd.m.Y',
     allowInput: false,
     disableMobile: true,
     defaultDate: defaultPartyDate(),
     onChange: (selectedDates, _str, instance) => {
       if (!selectedDates[0]) return
+      // Date pick keeps the calendar open so the user can set time next.
       commit(instance, selectedDates[0])
     },
     onReady: (_dates, _str, instance) => {
@@ -212,12 +214,15 @@ export function bindPartyDateTimePicker(
           selectedHour = Number(hourBtn.dataset.hour)
           if (selectedHour === 21) selectedMinute = 0
           commit(instance, base)
+          // 21:00 has no minute choice — time is complete
+          if (selectedHour === 21) instance.close()
           return
         }
 
         if (minuteBtn) {
           selectedMinute = Number(minuteBtn.dataset.minute)
           commit(instance, base)
+          instance.close()
         }
       })
 

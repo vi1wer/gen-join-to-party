@@ -1,3 +1,19 @@
+@font-face {
+  font-family: 'Montserrat Black';
+  src: url('./assets/fonts/Montserrat-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Days';
+  src: url('./assets/fonts/Days.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg-deep: #0b1424;
   --bg-panel: #121c31;
@@ -10,7 +26,7 @@
   --ok: #3ddea8;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   --radius: 18px;
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: 'Days', system-ui, sans-serif;
   color: var(--text);
   background: var(--bg-deep);
   line-height: 1.45;
@@ -67,9 +83,9 @@ body {
 
 .hero h1 {
   margin: 0;
-  font-family: 'Unbounded', 'Manrope', sans-serif;
+  font-family: 'Montserrat Black', 'Days', sans-serif;
   font-size: clamp(1.45rem, 3vw, 2.2rem);
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: -0.02em;
 }
 
@@ -315,6 +331,19 @@ span.flatpickr-weekday {
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-current-month input.cur-year {
   color: #f7f9fc;
+  background: transparent;
+}
+
+/* Native month <select> list: light options text was invisible on OS light popup */
+.flatpickr-monthDropdown-months option {
+  background-color: #ffffff;
+  color: #1a1020;
+}
+
+.flatpickr-monthDropdown-months option:checked,
+.flatpickr-monthDropdown-months option:hover {
+  background-color: #2563eb;
+  color: #ffffff;
 }
 
 .flatpickr-day {
@@ -438,10 +467,6 @@ button:disabled {
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
-  }
-
-  .preview-panel {
-    order: -1;
   }
 
   .page {
