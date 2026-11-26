@@ -52,7 +52,7 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
 
 export async function loadInvitationAssets(): Promise<void> {
   if (assets) return
-  const bust = '?v=35'
+  const bust = '?v=36'
   const base = import.meta.env.BASE_URL
   const [bg, logo, icons, cta] = await Promise.all([
     loadImage(`${base}bg.png${bust}`),
@@ -263,7 +263,8 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
   const footerLineY = h - EDGE_BOTTOM - FOOTER_H
   const contact = `По всем вопросам звоните: ${phone} — ${host}`
   const contactSize = fitSize(ctx, contact, contentW, 42, 24, FONT_BODY, 500)
-  const contactY = footerLineY - 18 - contactSize / 2
+  // One contact-line above the previous position
+  const contactY = footerLineY - 18 - contactSize / 2 - contactSize
 
   // Aggressive fill of A5 — large blocks, tight gaps
   const top = EDGE_TOP
@@ -322,11 +323,11 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
   const moreY = iconsTop + iconsDrawn.h + g * 1.2 + moreSize / 2
 
   // CTA fills remaining — stays large
-  const ctaTop = moreY + moreSize / 2 + g * 1.5
-  const ctaBottom = contactY - contactSize / 2 - 16
+  const ctaTop = moreY + moreSize / 24 + g * 1.5
+  const ctaBottom = contactY - contactSize / 2 - 150
   const ctaSlotH = Math.max(span * 0.16, ctaBottom - ctaTop)
   const ctaH = ctaSlotH * 0.9
-  const ctaW = Math.min(1550, contentW) * 0.9
+  const ctaW = Math.min(1555, contentW) * 0.9
   const ctaY = (ctaTop + ctaBottom) / 2
 
   drawContained(ctx, assets.logo, w / 2, logoY, logoW, logoH)
