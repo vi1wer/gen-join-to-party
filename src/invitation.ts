@@ -28,10 +28,11 @@ const PALETTE = {
   line: 'rgba(255,255,255,0.55)',
 }
 
-/** Montserrat Black — title «ПРИГЛАШЕНИЕ» only */
+/** Montserrat Black — только «ПРИГЛАШЕНИЕ» */
 const FONT_TITLE = '"Montserrat Black", sans-serif'
-/** Days Regular — all other invitation text */
-const FONT_BODY = 'Days, sans-serif'
+/** Прежние шрифты для остального текста */
+const FONT_BRAND = 'Unbounded, sans-serif'
+const FONT_BODY = 'Manrope, sans-serif'
 
 type Assets = {
   bg: HTMLImageElement
@@ -51,7 +52,7 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
 
 export async function loadInvitationAssets(): Promise<void> {
   if (assets) return
-  const bust = '?v=19'
+  const bust = '?v=35'
   const base = import.meta.env.BASE_URL
   const [bg, logo, icons, cta] = await Promise.all([
     loadImage(`${base}bg.png${bust}`),
@@ -66,9 +67,10 @@ export async function waitForFonts(): Promise<void> {
   if (!document.fonts) return
   await Promise.all([
     document.fonts.load(`900 160px ${FONT_TITLE}`),
-    document.fonts.load(`400 90px ${FONT_BODY}`),
-    document.fonts.load(`400 56px ${FONT_BODY}`),
-    document.fonts.load(`400 40px ${FONT_BODY}`),
+    document.fonts.load(`800 120px ${FONT_BRAND}`),
+    document.fonts.load(`700 90px ${FONT_BODY}`),
+    document.fonts.load(`600 56px ${FONT_BODY}`),
+    document.fonts.load(`500 40px ${FONT_BODY}`),
   ])
   await document.fonts.ready
 }
@@ -98,6 +100,15 @@ function drawCoverBackground(ctx: CanvasRenderingContext2D, img: HTMLImageElemen
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh)
 }
 
+function containedSize(
+  img: HTMLImageElement,
+  maxW: number,
+  maxH: number,
+): { w: number; h: number } {
+  const scale = Math.min(maxW / img.width, maxH / img.height)
+  return { w: img.width * scale, h: img.height * scale }
+}
+
 function drawContained(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -106,9 +117,7 @@ function drawContained(
   maxW: number,
   maxH: number,
 ): void {
-  const scale = Math.min(maxW / img.width, maxH / img.height)
-  const dw = img.width * scale
-  const dh = img.height * scale
+  const { w: dw, h: dh } = containedSize(img, maxW, maxH)
   ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh)
 }
 
@@ -130,8 +139,13 @@ function roundRectPath(
   ctx.closePath()
 }
 
-function drawFooter(ctx: CanvasRenderingContext2D, w: number, venue: Venue, lineY: number): void {
-  const left = EDGE_X
+function drawFooter(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  venue: Venue,
+  lineY: number,
+  left = EDGE_X,
+): void {
   const right = w - EDGE_X
 
   ctx.strokeStyle = PALETTE.line
@@ -144,11 +158,11 @@ function drawFooter(ctx: CanvasRenderingContext2D, w: number, venue: Venue, line
   ctx.textAlign = 'left'
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = PALETTE.text
-  ctx.font = `400 40px ${FONT_BODY}`
+  ctx.font = `700 40px ${FONT_BRAND}`
   const brand = 'LASERLAND '
   ctx.fillText(brand, left, lineY + 62)
   const brandW = ctx.measureText(brand).width
-  ctx.font = `400 40px ${FONT_BODY}`
+  ctx.font = `800 40px ${FONT_BRAND}`
   ctx.fillText('КАЗАНЬ', left + brandW, lineY + 62)
 
   const addrMaxW = w * 0.54
@@ -233,8 +247,8 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
 
   const guest = data.guestName.trim() || 'Дорогой Друг'
   const when = data.dateTime.trim() || '25 октября в 17:00'
-  const phone = data.contactPhone.trim() || '+7 (950) 166-05-10'
-  const host = data.contactName.trim() || 'Юля'
+  const phone = data.contactPhone.trim() || '+7 (___) ___-__-__'
+  const host = data.contactName.trim() || 'Имя'
   const venue = getVenue(data.venueId)
   const contentW = w - EDGE_X * 2
 
@@ -257,45 +271,69 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
   const span = bottom - top
   const g = span * 0.008 // ~tight gap
 
-  const logoH = span * 0.17
-  const logoY = top + logoH / 2
+  const adventure = 'В LaserLand нас ждет космическое приключение,'
+  const adventureSize = fitSize(ctx, adventure, contentW, Math.round(span * 0.024), 30, FONT_BODY, 500)
 
-  const titleSize = fitSize(ctx, 'ПРИГЛАШЕНИЕ', contentW, Math.round(span * 0.072), 90, FONT_TITLE, 900)
+  const titleWord = 'ПРИГЛАШЕНИЕ'
+  const titleSize = fitSize(ctx, titleWord, contentW, Math.round(span * 0.072), 90, FONT_TITLE, 900)
+  // Logo width = visual span from «Л» to «Ш» in ПРИГЛАШЕНИЕ
+  ctx.font = `900 ${titleSize}px ${FONT_TITLE}`
+  const lToShWidth =
+    ctx.measureText('ПРИГЛАШ').width - ctx.measureText('ПРИГ').width
+  const logoW = Math.max(80, lToShWidth * 0.95)
+  const logoScale = logoW / assets.logo.width
+  const logoH = assets.logo.height * logoScale
+  // Top padding before logo = one adventure line
+  const logoY = top + adventureSize + logoH / 2
+
   const titleY = logoY + logoH / 2 + g * 1.4 + titleSize / 2
-
-  const guestSize = fitSize(ctx, guest, contentW, Math.round(span * 0.042), 48, FONT_BODY, 700)
-  const guestY = titleY + titleSize / 2 + g * 1.2 + guestSize / 2
 
   const invite = 'Приглашаю тебя на свой День рождения, который состоится'
   const inviteSize = fitSize(ctx, invite, contentW, Math.round(span * 0.024), 30, FONT_BODY, 600)
+  // Same gap (≈ invite font size) under title and under guest name
+  const textGap = inviteSize
+
+  const guestSize = fitSize(ctx, guest, contentW, Math.round(span * 0.042 * 1.6), 62, FONT_BODY, 700)
+  const guestY = titleY + titleSize / 2 + textGap + guestSize / 2
+
   const dateSize = fitSize(ctx, when, contentW, Math.round(span * 0.034), 40, FONT_BODY, 700)
   ctx.font = `700 ${dateSize}px ${FONT_BODY}`
   const dateW = ctx.measureText(when).width
   const dateOnOwnLine = dateW <= contentW
-  const inviteY = guestY + guestSize / 2 + g * 1.2 + inviteSize / 2
+  const inviteY = guestY + guestSize / 2 + textGap + inviteSize / 2
   const dateY = dateOnOwnLine ? inviteY + inviteSize / 2 + g + dateSize / 2 : inviteY
   const afterDate = (dateOnOwnLine ? dateY : inviteY) + dateSize / 2
 
-  const adventure = 'В LaserLand нас ждет космическое приключение,'
-  const adventureSize = fitSize(ctx, adventure, contentW, Math.round(span * 0.024), 30, FONT_BODY, 500)
-  const adventureY = afterDate + g * 1.4 + adventureSize / 2
+  // Gap after date/time = two date font sizes
+  const adventureY = afterDate + dateSize * 2 + adventureSize / 2
 
-  const moreSize = Math.max(42, Math.round(span * 0.028))
-  const iconsH = span * 0.235
-  const iconsY = adventureY + adventureSize / 2 + g * 1.5 + iconsH / 2
-  const moreY = iconsY + iconsH / 2 + g * 1.2 + moreSize / 2
+  // Same size as adventure line
+  const moreSize = adventureSize
+  const iconsMaxH = span * 0.235
+  const iconsDrawn = containedSize(assets.icons, contentW, iconsMaxH)
+  // Pin icons top edge right under the adventure line (real drawn height)
+  const iconsGap = Math.max(6, Math.round(adventureSize * 0.25))
+  const iconsTop = adventureY + adventureSize / 2 + iconsGap
+  const iconsY = iconsTop + iconsDrawn.h / 2
+  // Left edge of «Лазерные бои» (content, not transparent pad in the strip)
+  const iconsScale = iconsDrawn.w / assets.icons.width
+  const iconsPadL = 49 // transparent left pad in icons-use.png
+  const iconsContentLeft = w / 2 - iconsDrawn.w / 2 + iconsPadL * iconsScale
+  const moreY = iconsTop + iconsDrawn.h + g * 1.2 + moreSize / 2
 
   // CTA fills remaining — stays large
   const ctaTop = moreY + moreSize / 2 + g * 1.5
   const ctaBottom = contactY - contactSize / 2 - 16
-  const ctaH = Math.max(span * 0.16, ctaBottom - ctaTop)
+  const ctaSlotH = Math.max(span * 0.16, ctaBottom - ctaTop)
+  const ctaH = ctaSlotH * 0.9
+  const ctaW = Math.min(1550, contentW) * 0.9
   const ctaY = (ctaTop + ctaBottom) / 2
 
-  drawContained(ctx, assets.logo, w / 2, logoY, Math.min(1100, contentW), logoH)
+  drawContained(ctx, assets.logo, w / 2, logoY, logoW, logoH)
 
   ctx.fillStyle = PALETTE.gold
   ctx.font = `900 ${titleSize}px ${FONT_TITLE}`
-  ctx.fillText('ПРИГЛАШЕНИЕ', w / 2, titleY)
+  ctx.fillText(titleWord, w / 2, titleY)
 
   ctx.fillStyle = PALETTE.text
   ctx.font = `700 ${guestSize}px ${FONT_BODY}`
@@ -303,6 +341,7 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
 
   ctx.fillStyle = PALETTE.muted
   if (dateOnOwnLine) {
+    ctx.textAlign = 'center'
     ctx.font = `600 ${inviteSize}px ${FONT_BODY}`
     ctx.fillText(invite, w / 2, inviteY)
     ctx.fillStyle = PALETTE.text
@@ -318,28 +357,27 @@ export function renderInvitation(canvas: HTMLCanvasElement, data: InvitationData
     ctx.fillStyle = PALETTE.text
     ctx.font = `700 ${dateSize}px ${FONT_BODY}`
     ctx.fillText(when, startX + inviteW + 18, inviteY)
-    ctx.textAlign = 'center'
   }
 
+  ctx.textAlign = 'left'
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
   ctx.font = `500 ${adventureSize}px ${FONT_BODY}`
-  ctx.fillText(adventure, w / 2, adventureY)
+  ctx.fillText(adventure, iconsContentLeft, adventureY)
 
-  drawContained(ctx, assets.icons, w / 2, iconsY, contentW, iconsH)
+  drawContained(ctx, assets.icons, w / 2, iconsY, contentW, iconsMaxH)
 
   ctx.fillStyle = PALETTE.muted
-  ctx.font = `600 ${moreSize}px ${FONT_BODY}`
-  ctx.textAlign = 'left'
-  ctx.fillText('и многое другое!', EDGE_X, moreY)
+  ctx.font = `500 ${moreSize}px ${FONT_BODY}`
+  ctx.fillText('и многое другое!', iconsContentLeft, moreY)
   ctx.textAlign = 'center'
 
-  drawContained(ctx, assets.cta, w / 2, ctaY, Math.min(1550, contentW), ctaH)
+  drawContained(ctx, assets.cta, w / 2, ctaY, ctaW, ctaH)
 
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
   ctx.font = `500 ${contactSize}px ${FONT_BODY}`
   ctx.fillText(contact, w / 2, contactY)
 
-  drawFooter(ctx, w, venue, footerLineY)
+  drawFooter(ctx, w, venue, footerLineY, iconsContentLeft)
 }
 
 export function downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {

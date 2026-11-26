@@ -67,7 +67,7 @@ app.innerHTML = `
           <div class="field">
             <label for="contactName">Имя для связи</label>
             <input id="contactName" name="contactName" type="text" maxlength="24"
-              placeholder="Например: Юля" value="" autocomplete="name" />
+              placeholder="Например: Мама Юля" value="" autocomplete="name" />
           </div>
 
           <div class="actions">
