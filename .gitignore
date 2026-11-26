@@ -5,6 +5,10 @@ dist
 .vscode/*
 !.vscode/extensions.json
 
+__pycache__/
+*.py[cod]
+test.html
+
 # Local debug crops / scratch exports
 public/_*.png
 *.p0.png

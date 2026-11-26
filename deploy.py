@@ -133,8 +133,11 @@ def main() -> int:
 
     if changed:
         run(["git", "add", "-A"])
-        # Keep local scratch out of the release if present
-        run(["git", "reset", "HEAD", "--", "test.html"], check=False)
+        # Keep local scratch / bytecode out of the release
+        run(
+            ["git", "reset", "HEAD", "--", "test.html", "__pycache__", "*.pyc"],
+            check=False,
+        )
         staged = git_output("diff", "--cached", "--name-only")
         if not staged:
             print("Nothing staged after excluding scratch files.")
